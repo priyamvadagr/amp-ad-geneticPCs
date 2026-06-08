@@ -1,0 +1,35 @@
+# --- Data (controlled-access; never commit) ---
+data/
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.gds
+*.bed
+*.bim
+*.fam
+
+# --- Credentials / secrets ---
+.synapseConfig
+*.pem
+*token*
+.Renviron
+
+# --- renv: commit the lockfile, NOT the library ---
+renv/library/
+renv/local/
+renv/cellar/
+renv/staging/
+
+# --- R session files ---
+.Rhistory
+.RData
+.Rproj.user/
+
+# --- Outputs / large intermediates (optional - adjust to taste) ---
+results/
+*.log
+
+# --- OS / editor cruft ---
+.DS_Store
+*~
+.vscode/
