@@ -1,0 +1,512 @@
+---
+title: "Sample Overlap Reconciliation: DivCo + AMP-AD 1.0"
+subtitle: "Mapping genotyped sample IDs to cohort metadata"
+author: ""
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+---
+
+<style>
+body  { font-size: 16px; line-height: 1.6; }
+h1    { font-size: 24px; font-weight: bold; }
+h2    { font-size: 20px; font-weight: bold; }
+h3    { font-size: 18px; }
+pre, code { font-size: 13px; }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width  = 12,
+  fig.height = 4,
+  fig.align  = "center"
+)
+
+# global plot theme so all ggplots inherit readable font sizes
+library(ggplot2)
+theme_set(theme_minimal(base_size = 14))
+```
+
+# Genotype Data 
+
+The genotyped data is the combined **DivCo + AMP-AD 1.0** set (syn67158725). The
+sample IDs in the VCF are a mix of identifiers from several contributing studies,
+and the goal here is to **generate combined individual, assay, and biospecimen metadata**
+by matching it to one of the source metadata files.
+
+```{r libraries, echo = FALSE}
+library(dplyr)
+library(ggVennDiagram)   
+library(ggplot2)
+```
+
+```{r helper, echo = FALSE}
+# Small helper to draw a 2-set Venn for "genotyped samples" vs. "a metadata source"
+venn_two <- function(genotyped, metadata_ids, metadata_label,
+                     title = NULL) {
+  sets <- list(
+    `Genotyped sample IDs` = unique(as.character(genotyped)),
+    metadata_ids        = unique(as.character(metadata_ids))
+  )
+  names(sets)[2] <- metadata_label
+  ggVennDiagram(sets, label = "count", label_alpha = 0) +
+    scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+    labs(title = title) +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = unit(c(0.5, 15, 1, 5), "cm"))
+}
+```
+
+```{r load-sample-list, echo = FALSE}
+# Genotyped sample IDs extracted from the filtered VCF
+sample_list <- read.table("~/data/processed/sample_ids.txt")$V1
+sample_list <- as.character(sample_list)
+```
+ The full genotyped list contains `r length(sample_list)` samples.
+
+# DivCo metadata
+
+The Diverse Cohorts (DivCo) study provides three metadata tables — individual,
+assay (WGS), and biospecimen.
+
+AMP-AD_DiverseCohorts_assay_WGS_metadata.csv is the DivCo metadata file (syn51757644) to which sample list were matched using `specimenID`
+AMP-AD_DiverseCohorts_individual_metadata.csv (syn51757646) contains individual level data for DivCo cohort
+AMP-AD_DiverseCohorts_biospecimen_metadata.csv (syn51757645) contains individual to biospecimen mapping for DivCo cohort 
+
+```{r divco-wgs, echo = FALSE}
+AMP_AD_DivCo_wgs_df <- read.table(
+  "~/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_assay_WGS_metadata.csv",
+  sep = ",", header = TRUE
+)
+
+# 743 of the DivCo samples are present (of 762 DivCo specimens total)
+divco_overlap <- sample_list[sample_list %in% AMP_AD_DivCo_wgs_df$specimenID]
+
+```
+
+The WGS metadata file contains `r length(unique(AMP_AD_DivCo_wgs_df$specimenID))` samples of 
+which `r length(divco_overlap)` samples are in DivCo + AMP-AD 1.0 jointcall VCFs
+
+```{r divco-wgs-venn, echo = FALSE}
+venn_two(sample_list, AMP_AD_DivCo_wgs_df$specimenID,
+         "DivCo specimenID",
+         title = "VCF samples vs. DivCo WGS assay metadata")
+```
+```{r divco-individual, echo = FALSE}
+# load individual and biospecimen metadata
+AMP_AD_DivCo_individual_df <- read.table(
+  "~/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_individual_metadata.csv",
+  sep = ",", header = TRUE
+)
+AMP_AD_DivCo_biospec_df <- read.table(
+  '~/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_biospecimen_metadata.csv', 
+  sep = ',', header = T)
+
+# Subset specimen df to the ones present in sample list 
+AMP_AD_DivCo_biospec_df <- AMP_AD_DivCo_biospec_df[AMP_AD_DivCo_biospec_df$specimenID %in% divco_overlap,]
+AMP_AD_DivCo_individual_df <- AMP_AD_DivCo_individual_df[AMP_AD_DivCo_individual_df$individualID %in% AMP_AD_DivCo_biospec_df$individualID, ]
+```
+# AMP-AD 1.0 metadata
+
+The remaining genotyped samples come from the AMP-AD 1.0 studies (ROSMAP, MSBB,
+Mayo). Each is checked against its WGS assay metadata.
+
+### ROSMAP
+
+ROSMAP_assay_wholeGenomeSeq_metadata.csv (syn21314542) is the Rosmap WGS metadata file to which sample list were matched using `specimenID`
+ROSMAP_clinical.csv (syn3191087) is the Rosmap individual metadata file
+ROSMAP_biospecimen_metadata.csv (syn21323366) is the Rosmap biospecimen metadata file 
+
+```{r rosmap_wgs, echo=FALSE}
+rosmap_wgs_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/ROSMAP_assay_wholeGenomeSeq_metadata.csv",
+  sep = ",", header = TRUE
+)
+rosmap_overlap <- sample_list[sample_list %in% rosmap_wgs_df$specimenID]
+#length(rosmap_overlap)   # 12 overlap
+```
+
+The WGS metadata file contains `r length(unique(rosmap_wgs_df$specimenID))` samples of 
+which `r length(rosmap_overlap)` samples are in DivCo + AMP-AD 1.0 jointcall VCFs
+
+```{r rosmap-venn, echo = FALSE}
+venn_two(sample_list, rosmap_wgs_df$specimenID,
+         "ROSMAP specimenID",
+         title = "VCF samples vs. ROSMAP WGS assay metadata")
+``` 
+```{r rosmap_metadata, echo=FALSE}
+# load individual and biospecimen metadata
+rosmap_individual_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/ROSMAP_clinical.csv",
+  sep = ",", header = TRUE
+)
+rosmap_bio_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/ROSMAP_biospecimen_metadata.csv",
+  sep = ",", header = TRUE
+)
+
+```
+### MSBB
+MSBB_assay_wholeGenomeSeq_metadata.csv (syn22360825) is the MSBB WGS metadata file to which sample list were matched using `specimenID` 
+MSBB_individual_metadata.csv (syn6101474) is the MSBB individual metadata file
+MSBB_biospecimen_metadata.csv (syn21893059) is the MSBB biospecimen metadata file 
+
+```{r msbb, echo = FALSE}
+msbb_wgs_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MSBB_assay_wholeGenomeSeq_metadata.csv",
+  sep = ",", header = TRUE
+)
+msbb_overlap <- sample_list[sample_list %in% as.character(msbb_wgs_df$specimenID)]
+```
+The WGS metadata file contains `r length(unique(msbb_wgs_df$specimenID))` samples of 
+which `r length(msbb_overlap)` samples are in DivCo + AMP-AD 1.0 jointcall VCFs
+```{r msbb-venn, echo = FALSE}
+venn_two(sample_list, msbb_wgs_df$specimenID,
+         "MSBB specimenID",
+         title = "VCF samples vs. MSBB WGS assay metadata")
+```
+```{r msbb_all, echo = FALSE}
+# load individual and biospecimen metadata
+msbb_individual_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MSBB_individual_metadata.csv",
+  sep = ",", header = TRUE
+)
+msbb_bio_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MSBB_biospecimen_metadata.csv",
+  sep = ",", header = TRUE
+)
+```
+### MayoRNAseq
+
+MayoRNAseq_assay_wholeGenomeSeq_metadata.csv (syn23481994) is the Mayo WGS metadata file to which sample list were matched using `specimenID` 
+MayoRNAseq_individual_metadata.csv (syn23277389)  is the Mayo individual metadata file
+MayoRNAseq_biospecimen_metadata.csv (syn20827192) is the Mayo biospecimen metadata file 
+```{r mayo, echo = FALSE}
+mayo_wgs_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MayoRNAseq_assay_wholeGenomeSeq_metadata.csv",
+  sep = ",", header = TRUE
+)
+mayo_overlap <- sample_list[sample_list %in% as.character(mayo_wgs_df$specimenID)]
+```
+The WGS metadata file contains `r length(unique(mayo_wgs_df$specimenID))` samples of 
+which `r length(mayo_overlap)` samples are in DivCo + AMP-AD 1.0 jointcall VCFs
+
+```{r mayo-venn, echo = FALSE}
+venn_two(sample_list, mayo_wgs_df$specimenID,
+         "Mayo specimenID",
+         title = "Genotyped samples vs. Mayo WGS assaymetadata")
+```
+```{r mayo_all, echo=FALSE}
+# for MayoRNAseq, specimenID and individualID are the same
+mayo_individual_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MayoRNAseq_individual_metadata.csv",
+  sep = ",", header = TRUE
+)
+mayo_bio_df <- read.table(
+  "~/data/metadata/AMP-AD_1.0/MayoRNAseq_biospecimen_metadata.csv",
+  sep = ",", header = TRUE
+)
+```
+
+# Combined overlap (first pass)
+
+Accumulate every sample matched so far across DivCo and the three AMP-AD 1.0 studies,
+then see how many genotyped samples remain unaccounted for.
+
+```{r combined-first, echo = FALSE}
+combined_overlap <- c(mayo_overlap, msbb_overlap, rosmap_overlap, divco_overlap)
+# samples still unmatched
+remaining <- setdiff(sample_list, combined_overlap)
+```
+At this stage, `r length(unique(combined_overlap))` samples are accounted for and `r length(setdiff(sample_list, combined_overlap))`
+samples are still unmatched — these are resolved below via the DivCo-to-AMP-AD 1.0 ID linking file.
+
+```{r combined-first-venn, echo = FALSE}
+venn_two(sample_list, combined_overlap,
+         "DivCO + AMP AD 1.0 specimenID",
+         title = "VCF samples vs. DivCO + AMP AD 1.0 WGS assay metadata")
+```
+### Resolving ID-scheme mismatches (DivCo <-> AMP-AD 1.0)
+DivCo2_AMPAD1_IDlink2.csv (syn75361064) is a linking files for the n=276 AMP-AD1.0 samples in the DivCo + AMP 1.0 joint called sample set,
+listing the individualID and AMP-AD1.0 WGS specimenID (to link to AMP-AD1.0 metadata)
+
+```{r idlink, echo = FALSE}
+divco_ampad1_idlink <- read.table(
+  "~/data/metadata/DivCo2_AMPAD1_IDlink2.csv",
+  sep = ",", header = TRUE
+)
+mayo_divco_ampad1_idlink   <- divco_ampad1_idlink[divco_ampad1_idlink$study_WGS_AMPAD1 == "MAYO_AMPAD1", ]
+rosmap_divco_ampad1_idlink <- divco_ampad1_idlink[divco_ampad1_idlink$study_WGS_AMPAD1 == "ROSMAP_AMPAD1", ]
+```
+### Mayo ID linking
+```{r idlink-mayo, echo = FALSE}
+# restrict to linked individuals that are in our genotyped list
+mayo_divco_ampad1_idlink <- mayo_divco_ampad1_idlink[
+  mayo_divco_ampad1_idlink$individualID %in% sample_list, ]
+
+```
+The link file contains `r length(mayo_divco_ampad1_idlink$individualID)` samples from MayoRNAseq cohort
+of which `r length(intersect(combined_overlap, mayo_divco_ampad1_idlink$specimenID))` have been accounted for.
+These samples have identical individualID and specimenID and have multiple assay types ("wholeGenomeSeq" or "snpArray") and 
+specimenIDSource ("MayoBrainBank", "BannerSun", or "SNPs" ) associated with them in MayoRNAseq_biospecimen_metadata.csv
+
+### ROSMAP ID linking
+
+```{r idlink-rosmap, echo = FALSE}
+rosmap_divco_ampad1_idlink <- rosmap_divco_ampad1_idlink[
+  rosmap_divco_ampad1_idlink$individualID %in% sample_list, ]
+
+# where specimenID already equals individualID in our list
+rosmap_divco_ampad1_common <- rosmap_divco_ampad1_idlink[
+  rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1 %in% sample_list, ]
+#setdiff(rosmap_divco_ampad1_common$specimenID_WGS_AMPAD1,
+        #rosmap_divco_ampad1_common$individualID)
+
+
+# the ROSMAP entries whose specimenID is NOT in the list -> match via individualID instead
+rosmap_divco_ampad1_no_overlap <- rosmap_divco_ampad1_idlink[
+  !(rosmap_divco_ampad1_idlink$specimenID %in% sample_list), ]
+
+rosmap_ind_sample_mismatch <- sample_list[sample_list %in% rosmap_divco_ampad1_no_overlap$individualID]
+
+```
+The link file contains `r length(rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1)` samples from ROSMAP cohort
+of which `r length(intersect(combined_overlap, rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1))` have been accounted for.
+These IDs had identical specimenID and individualID in ROSMAP_biospecimen_metadata.csv across assays and tissue types. They also have identical 
+specimenID_WGS_AMPAD1 and individualID in the link file.
+The remaining `r length(rosmap_divco_ampad1_no_overlap$specimenID_WGS_AMPAD1)` samples from the ROSMAP cohort in the link file
+have different specimenID and individualID in ROSMAP_biospecimen_metadata.csv (i.e. one specimenID for each tissue type). But the individualIDs were used 
+for joint call sample labeling, so the overlap with specimenID fails for them. 
+```{r idlink-rosmap-venn, echo = FALSE}
+venn_two(sample_list, c(rosmap_divco_ampad1_no_overlap$specimenID_WGS_AMPAD1, rosmap_divco_ampad1_common$specimenID_WGS_AMPAD1),
+         "ROSMAP individualID",
+         title = "Genotyped samples vs. ROSMAP from link file")
+```
+
+## Final reconciliation
+
+Add the ROSMAP donors that matched only via `individualID` (their `specimenID` was not
+in the genotyped list), then confirm how many samples remain unaccounted for.
+
+```{r final, echo = FALSE}
+combined_overlap <- c(combined_overlap, rosmap_divco_ampad1_no_overlap$individualID)
+
+remaining_final <- setdiff(sample_list, combined_overlap)
+#length(remaining_final)
+```
+
+```{r final-venn, echo = FALSE}
+venn_two(sample_list, combined_overlap,
+         "Matched (final)",
+         title = "Genotyped samples vs. all matched samples (final)")
+```
+
+```{r final-report, echo=FALSE, results='asis'}
+n_total   <- length(sample_list)
+n_matched <- length(intersect(sample_list, combined_overlap))
+n_left    <- length(remaining_final)
+cat(sprintf(
+  "Of **%d** genotyped samples, **%d** are matched to a metadata source and **%d** remain unaccounted for.\n\n",
+  n_total, n_matched, n_left
+))
+if (n_left > 0) {
+  cat("Unmatched sample IDs:\n\n")
+  cat(paste0("- `", remaining_final, "`"), sep = "\n")
+}
+```
+
+# Filter data and create a combined metadata file 
+
+```{r WGS_combined_metadata, echo = FALSE}
+#Subset each WGS file to samples from sample list and create combined WGS assay metadata
+AMP_AD_DivCo_wgs_df <- AMP_AD_DivCo_wgs_df[AMP_AD_DivCo_wgs_df$specimenID %in% sample_list, ]
+#Save table 
+write.table(AMP_AD_DivCo_wgs_df, '~/data/processed/metadata/DivCO/DivCo_assay_WGS_metadata.csv', sep = ',')
+mayo_wgs_df <- mayo_wgs_df[as.character(mayo_wgs_df$specimenID) %in% mayo_overlap, ]
+write.table(mayo_wgs_df, '~/data/processed/metadata/Mayo/Mayo_assay_WGS_metadata.csv', sep = ',')
+
+#for rosmap there are 12 samples with identical individual and biospecimenIDs and 170 without.
+#for all 182, will subset the rosmap wgs data using the biospecimenID from the rosmap subset of the link file
+#for the 170, will replace the specimenID with individualID in the biospecimen and wgs metadata 
+rosmap_wgs_df <- rosmap_wgs_df[rosmap_wgs_df$specimenID %in% rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1, ] #dimension is 182 
+rosmap_wgs_df$specimenID_AMPAD_1.0 <- rosmap_wgs_df$specimenID
+rosmap_wgs_df$specimenID <- rosmap_divco_ampad1_idlink$individualID[
+  match(rosmap_wgs_df$specimenID, rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1)
+]
+write.table(rosmap_wgs_df, '~/data/processed/metadata/Rosmap/Rosmap_assay_WGS_metadata.csv', sep = ',')
+#Check if the colnames in the wgs assay df are the same across 
+#setdiff(colnames(rosmap_wgs_df), colnames(mayo_wgs_df)) #exact same colnames for these two 
+#setdiff(colnames(mayo_wgs_df), colnames(AMP_AD_DivCo_wgs_df)) #only two columns overlap between AMP AD 1.0 and DivCO naively 
+#Based on content and column names the following were uniformly named: 
+#totalReads and Total.Reads; read lenth and Mean.Read.Length; 
+#added site "Mayo" and "Rush" for samples for which metadata was retreived from MayoRNAseq and Rosmap metadata files.   
+#added a new column "WGS metdata source file" - syn51757644 - DivCO; syn23481994 - mayo; syn21314542 - rosmap
+
+rosmap_wgs_clean <- rosmap_wgs_df |>
+  select(specimenID, GQN, totalReads, readLength) |>
+  mutate(Site = "Rush",
+         WGS_metadata_source = "syn21314542")
+
+mayo_wgs_clean <- mayo_wgs_df |>
+  select(specimenID, GQN, totalReads, readLength) |>
+  mutate(Site = "Mayo",
+         WGS_metadata_source = "syn23481994",
+         specimenID = as.character(specimenID))
+
+divco_wgs_clean <- AMP_AD_DivCo_wgs_df |>
+  rename(totalReads = Total.Reads,
+         readLength = Mean.Read.Length) |>
+  select(specimenID, GQN, totalReads, readLength, Site) |>
+  mutate(WGS_metadata_source = "syn51757644")
+
+combined_wgs_df <- bind_rows(
+  mutate(rosmap_wgs_clean, across(everything(), as.character)),
+  mutate(mayo_wgs_clean,   across(everything(), as.character)),
+  mutate(divco_wgs_clean,  across(everything(), as.character))
+)
+write.table(combined_wgs_df, '~/data/processed/metadata/Combined/DivCo_AMPAD_1.0_assay_WGS_metadata.csv', sep = ',')
+```
+```{r biospecimen_combined_metadata, echo = FALSE}
+#Subset each biospecimen file to samples from sample list and create combined biospecimen metadata
+AMP_AD_DivCo_biospec_df <- AMP_AD_DivCo_biospec_df[AMP_AD_DivCo_biospec_df$specimenID %in% sample_list, ]
+#Save table 
+write.table(AMP_AD_DivCo_biospec_df, '~/data/processed/metadata/DivCO/DivCo_biospecimen_metadata.csv', sep = ',')
+mayo_bio_df <- mayo_bio_df[as.character(mayo_bio_df$specimenID) %in% mayo_overlap, ]
+write.table(mayo_bio_df, '~/data/processed/metadata/Mayo/Mayo_biospecimen_metadata.csv', sep = ',')
+rosmap_bio_df <- rosmap_bio_df[rosmap_bio_df$individualID %in% c(rosmap_divco_ampad1_idlink$individualID), ] 
+write.table(rosmap_bio_df, '~/data/processed/metadata/Rosmap/Rosmap_biospecimen_metadata.csv', sep = ',')
+#for the combined metadata, only subsetting to wholeGenomeSeq for mayo and rosmap and resetting specimenID to individualID for rosmap
+rosmap_bio_df <- rosmap_bio_df[rosmap_bio_df$specimenID %in% rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1 & rosmap_bio_df$assay == 'wholeGenomeSeq', ]
+rosmap_bio_df$specimen_ID_AMPAD_1.0 <- rosmap_bio_df$individualID
+rosmap_bio_df$specimenID <- rosmap_divco_ampad1_idlink$individualID[
+  match(rosmap_bio_df$specimenID, rosmap_divco_ampad1_idlink$specimenID_WGS_AMPAD1)
+]
+mayo_bio_df <- mayo_bio_df[mayo_bio_df$assay == 'wholeGenomeSeq', ]
+mayo_bio_df$specimen_ID_AMPAD_1.0 <- mayo_bio_df$specimenID
+AMP_AD_DivCo_biospec_df <- AMP_AD_DivCo_biospec_df[AMP_AD_DivCo_biospec_df$assay == "wholeGenomeSeq", ]
+AMP_AD_DivCo_biospec_df$specimen_ID_AMPAD_1.0 <- "NA"
+#intersect(colnames(rosmap_bio_df), colnames(mayo_bio_df))
+#intersect(colnames(mayo_bio_df), colnames(AMP_AD_DivCo_biospec_df))
+#colnames(AMP_AD_DivCo_biospec_df)
+common_cols <- c("individualID", "specimenID", "specimen_ID_AMPAD_1.0", "organ", "tissue", 
+                 "BrodmannArea", "sampleStatus", "nucleicAcidSource", "assay")
+  
+rosmap_bio_clean <- rosmap_bio_df |>
+  select(all_of(common_cols)) |>
+  mutate(across(everything(), as.character),
+         biospecimen_metadata_source = "syn21323366")
+
+mayo_bio_clean <- mayo_bio_df |>
+  select(all_of(common_cols)) |>
+  mutate(across(everything(), as.character),
+         biospecimen_metadata_source = "syn20827192")
+
+divco_bio_clean <- AMP_AD_DivCo_biospec_df |>
+  select(all_of(common_cols)) |>
+  mutate(across(everything(), as.character),
+         biospecimen_metadata_source = "syn51757645")
+
+combined_bio_df <- bind_rows(rosmap_bio_clean, mayo_bio_clean, divco_bio_clean)
+write.table(combined_bio_df,
+            '~/data/processed/metadata/Combined/DivCo_AMPAD_1.0_biospecimen_metadata.csv',
+            sep = ',', row.names = FALSE)
+
+```
+```{r Individual_combined_metadata, echo = FALSE}
+#Subset each individual file to samples from sample list and create combined WGS assay metadata
+AMP_AD_DivCo_individual_df <- AMP_AD_DivCo_individual_df[AMP_AD_DivCo_individual_df$individualID %in% AMP_AD_DivCo_biospec_df$individualID, ]
+#Save table 
+write.table(AMP_AD_DivCo_individual_df, '~/data/processed/metadata/DivCO/DivCo_individual_metadata.csv', sep = ',')
+mayo_individual_df <- mayo_individual_df[as.character(mayo_individual_df$individualID) %in% mayo_bio_df$individualID, ]
+write.table(mayo_individual_df, '~/data/processed/metadata/Mayo/Mayo_individual_metadata.csv', sep = ',')
+#Rosmap
+rosmap_individual_df <- rosmap_individual_df[rosmap_individual_df$individualID %in% rosmap_divco_ampad1_idlink$individualID, ] #dimension is 182 
+write.table(rosmap_individual_df, '~/data/processed/metadata/Rosmap/Rosmap_individual_metadata.csv', sep = ',')
+common_cols <- c("individualID", "sex", "race", "ageDeath", "PMI", 
+                 "apoeGenotype", "Braak", "individual_metadata_source")
+
+rosmap_individual_clean <- rosmap_individual_df |>
+  rename(sex          = msex,
+         ageDeath     = age_death,
+         PMI          = pmi,
+         apoeGenotype = apoe_genotype,
+         Braak        = braaksc) |>
+  mutate(across(everything(), as.character),
+         individual_metadata_source = "syn6101474") 
+
+mayo_individual_clean <- mayo_individual_df |>
+  rename(PMI = pmi) |>
+  mutate(across(everything(), as.character),
+         individual_metadata_source = "syn23277389")
+
+divco_individual_clean <- AMP_AD_DivCo_individual_df |>
+  mutate(across(everything(), as.character),
+         individual_metadata_source = "syn51757646")
+
+combined_individual_df <- bind_rows(
+  rosmap_individual_clean |> select(all_of(common_cols)),
+  mayo_individual_clean   |> select(all_of(common_cols)),
+  divco_individual_clean  |> select(all_of(common_cols))
+)
+write.table(combined_individual_df,
+            '~/data/processed/metadata/Combined/DivCo_AMPAD_1.0_individual_metadata.csv',
+            sep = ',', row.names = FALSE)
+
+```
+```{r print_hist, echo = FALSE}
+combined_wgs_df |>
+  count(Site, WGS_metadata_source) |>
+  mutate(label = paste0(Site, "\n(", WGS_metadata_source, ")")) |>
+  ggplot(aes(x = reorder(label, n), y = n, fill = Site)) +
+  geom_col() +
+  geom_text(aes(label = n), hjust = -0.2, size = 4) +
+  coord_flip() +
+  scale_fill_manual(values = c("Rush" = "#4E79A7", "Mayo" = "#B07AA1",
+                                setNames("#F28E2B", unique(combined_wgs_df$Site[
+                                  !combined_wgs_df$Site %in% c("Rush","Mayo")][1])))) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  labs(title = "WGS samples by metadata source",
+       x = NULL, y = "N samples") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold")) +
+        theme(plot.margin = unit(c(1, 15, 1, 1), "cm")) 
+
+```
+Metadata from each cohort was filtered and combined into unified metadata tables for WGS assay, 
+biospecimen, and individual metadata.
+
+**ROSMAP** requires special handling across all three tables: of the `r nrow(rosmap_wgs_df)` ROSMAP 
+samples, 12 have identical `individualID` and `specimenID`, while the remaining 170 use different IDs 
+across the DivCo and AMP-AD 1.0 datasets. For all 182 samples, the AMP-AD 1.0 `specimenID` is retained 
+in a new column (`specimenID_AMPAD_1.0`) and replaced with the DivCo-compatible `individualID` using 
+the ID link file. Additionally, ROSMAP uses non-standard column names for several clinical variables 
+(`msex` → `sex`, `age_death` → `ageDeath`, `pmi` → `PMI`, `apoe_genotype` → `apoeGenotype`, 
+`braaksc` → `Braak`) which were harmonized prior to combining.
+
+For the **WGS assay metadata**, `Total.Reads` → `totalReads` and `Mean.Read.Length` → `readLength` were 
+harmonized across cohorts. Site labels (`Rush`, `Mayo`) were added for ROSMAP and Mayo samples as DivCo 
+already contains a `Site` column. The final combined table contains `r nrow(combined_wgs_df)` samples 
+across `r length(unique(combined_wgs_df$Site))` sites.
+
+For the **biospecimen metadata**, the following columns were retained across all three cohorts: 
+`individualID`, `specimenID`, `organ`, `tissue`, `BrodmannArea`, `sampleStatus`, `nucleicAcidSource`, 
+and `assay`. All tables were subset to `wholeGenomeSeq` assay only prior to combining. The final 
+combined table contains `r nrow(combined_bio_df)` samples.
+
+For the **individual metadata**, the following columns were retained across all three cohorts:
+`individualID`, `sex`, `race`, `ageDeath`, `PMI`, `apoeGenotype`, and `Braak`. The final combined 
+table contains `r nrow(combined_individual_df)` individuals.
+
+A `*_metadata_source` column was added to each combined table to track the originating Synapse file 
+per cohort. All combined tables are saved to `~/data/processed/metadata/Combined/`.
+
+

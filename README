@@ -1,0 +1,33 @@
+#WORKFLOW USED FOR PCA on DivCO = 1.0 AMP AD DATA 
+
+Genetic Data - syn2580853
+Metadata -
+
+#ENVIRONMENT
+
+
+##DATA DOWNLOAD 
+synapse get -r syn2580853 --downloadLocation ~/data/raw/
+
+##DATA PROCESSING 
+
+Concatenate all autosome files: 
+bcftools concat --threads 8 ~/data/raw/*.chr{1..22}.vcf.gz \
+  -Oz -o ~/data/processed/DivCo_AMP1.0_GRCh38_1019Samples_JointCalls_Recalibrated_Annotated_05-25-2025.all_auto.vcf.gz
+
+Filter variants using the following criteria:
+    - VQSR-PASS
+    - MAF > 0.01 
+    - Variant missingness > 1% 
+
+bcftools view \
+  -f PASS \
+  -m2 -M2 -v snps \
+  -q 0.01:minor \
+  -e 'F_MISSING > 0.01' \
+  --threads 8 \
+  ~/data/processed/*.all_auto.vcf.gz \
+  -Oz -o ~/data/processed/DivCo_AMP1.0_GRCh38_1019Samples_filtered.vcf.gz
+
+tabix -p vcf ~/data/processed/DivCo_AMP1.0_GRCh38_1019Samples_filtered.vcf.gz 
+
