@@ -1,0 +1,397 @@
+---
+title: "NYGC QC and syn51757644 (AMP Div Co WGS Metadata) check"
+subtitle: "Mapping samples between files and accounting for all samples"
+author: ""
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+---
+
+<style>
+body  { font-size: 16px; line-height: 1.6; }
+h1    { font-size: 24px; font-weight: bold; }
+h2    { font-size: 20px; font-weight: bold; }
+h3    { font-size: 18px; }
+pre, code { font-size: 13px; }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width  = 12,
+  fig.height = 4,
+  fig.align  = "center"
+)
+# global plot theme so all ggplots inherit readable font sizes
+library(ggplot2)
+theme_set(theme_minimal(base_size = 14))
+```
+
+## Check the overlap between the files 
+
+WGS Assay metadata file = syn51757644 
+NYGC QC file = AMP_AD_WGS_sequencing_QC_NYGC.xlsx
+Mapping file between NYGC QC and WGS = DivCo_SampleMapping.csv
+Sample IDs = Column names from vcf files in syn2580853
+
+
+```{r libraries, echo = FALSE}
+library(dplyr)
+library(ggVennDiagram)   
+library(ggplot2)
+library(xlsx)
+library(stringr)
+```
+```{r load data, echo = FALSE}
+
+wgs_assay_df_old <- read.table('/home/ec2-user/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_assay_WGS_metadata.csv', sep = ',', header = T)
+wgs_assay_df <- read.csv('/home/ec2-user/data/processed/metadata/DivCO/DivCo_assay_WGS_metadata.csv')
+
+wgs_qc_df <- read.xlsx('/home/ec2-user/data/metadata/AMP-AD_DivCO-WGS/AMP_AD_WGS_sequencing_QC_NYGC.xlsx', sheetIndex = 1)
+qc_assay_map <- read.table('/home/ec2-user/data/metadata/AMP-AD_DivCO-WGS/DivCo_SampleMapping.csv', sep = ',', header = T)
+qc_assay_map <- qc_assay_map %>% 
+                mutate('wgs_specimenID' = case_when(grepl('DLPFC', final_specimenid) ~ paste0(final_specimenid, '_WGS'),
+                                                      TRUE ~ final_specimenid))
+sample_ids <- read.table('/home/ec2-user/data/processed/sample_ids.txt')
+sample_ids <- sample_ids$V1
+dropped_samples <- read.table('/home/ec2-user/data/metadata/AMP-AD_DivCO-WGS/dropped_samples.tsv', sep = '\t', header = T)
+
+
+intersect(dropped_samples$Sample.ID, wgs_assay_df$specimenID)
+
+length(setdiff(wgs_assay_df$specimenID, wgs_qc_df$wgs_specimenID))
+
+length(setdiff(wgs_qc_df$Sample, qc_assay_map$filename.sample))
+
+wgs_qc_df[wgs_qc_df$X..Sequence.Contamination > 2, ]
+
+wgs_qc_df$wgs_specimenID <- qc_assay_map$'wgs_specimenID'[match(wgs_qc_df$Sample, qc_assay_map$filename.sample)]
+
+
+
+not_in_map <- setdiff(wgs_qc_df$Sample, qc_assay_map$filename.sample)
+
+dim(wgs_assay_df[wgs_assay_df$Percent.Sequence.Contamination > 2, 'specimenID'])
+
+length(intersect(wgs_assay_df$specimenID, sample_ids))
+
+intersect(setdiff(wgs_assay_df$specimenID, sample_ids), wgs_qc_df$Sample)
+
+intersect(setdiff(wgs_assay_df$specimenID, sample_ids), qc_assay_map$'wgs_specimenID')
+
+
+wgs_assay_df[wgs_assay_df$specimenID %in% setdiff(wgs_assay_df$specimenID, sample_ids)
+, ]
+
+
+
+
+
+setdiff(filtered_divco_wgs$specimenID, sample_ids)
+
+dim(filtered_divco_wgs[filtered_divco_wgs$Percent.Sequence.Contamination > 2, ])
+
+not_in_map[grepl('DLPFC',not_in_map)] <- paste0(str_replace(not_in_map[grepl('DLPFC',not_in_map)],'-', '_'),'_WGS')
+
+which(not_in_map %in% wgs_assay_df$specimenID)
+
+wgs_assay_df[wgs_assay_df$specimenID %in% not_in_map, ]
+
+
+wgs_qc_df[wgs_qc_df$Sample %in% setdiff(not_in_map, contam_samples), ]
+
+
+x <- (setdiff(c(qc_assay_map$wgs_specimenID, dropped_samples$Sample.ID), wgs_assay_df$specimenID))
+
+setdiff(not_in_map, dropped_samples$Sample.ID) == setdiff(not_in_map, contam_samples)
+not_in_map
+
+contam_samples <- wgs_qc_df[wgs_qc_df$X..Sequence.Contamination > 2, 'Sample']
+setdiff(contam_samples, dropped_samples$Sample.ID)
+
+setdiff(dropped_samples$Sample.ID, x)
+#Venn diagram showing overlap between map file and NYGC QC file
+ggVennDiagram(list(`Map File "filename.sample"` = qc_assay_map$filename.sample,
+                   `NYGC QC "Sample"` = wgs_qc_df$Sample,
+                   `Dropped Samples` = dropped_samples$Sample.ID),
+              label = "count", label_alpha = 0) +
+    scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+    labs(title = "Map file and NYGC QC file") +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = unit(c(0.5, 15, 1, 5), "cm"))
+
+#Venn diagram showing overlap between map file and WGS assay file 
+ggVennDiagram(list(`Map File "specimenid"` = qc_assay_map$final_specimenid,
+                   `WGS Assay "specimenID"` = wgs_assay_df$specimenID),
+              label = "count", label_alpha = 0) +
+    scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+    labs(title = "Map file and WGS assay metadata file") +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = unit(c(0.5, 15, 1, 5), "cm"))
+
+
+#Venn diagram showing overlap between map file and WGS assay file 
+ggVennDiagram(list(`Map File "wgs_specimenID"` = qc_assay_map$'wgs_specimenID',
+                   `WGS Assay "specimenID"` = wgs_assay_df$specimenID),
+              label = "count", label_alpha = 0) +
+    scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+    labs(title = "Map file and WGS assay metadata file") +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = unit(c(0.5, 15, 1, 5), "cm"))
+
+#Venn diagram showing overlap between map file and WGS assay file 
+ggVennDiagram(list(`Map File "wgs_specimenID"` = qc_assay_map$'wgs_specimenID',
+                   `Sample IDs` = sample_ids),
+              label = "count", label_alpha = 0) +
+    scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+    labs(title = "Map file and WGS assay metadata file") +
+    theme(legend.position = "none") +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = unit(c(0.5, 15, 1, 5), "cm"))
+
+
+ggVennDiagram(
+  list(
+    `Map File`  = qc_assay_map$wgs_specimenID,
+    `NYGC QC`   = wgs_qc_df$wgs_specimenID,
+    `WGS Assay` = wgs_assay_df$specimenID
+  ),
+  label = "count", label_alpha = 0) +
+  scale_fill_gradient(low = "#F4FAFE", high = "#4981BF") +
+  labs(title = "Overlap across the three files") +
+  theme(legend.position = "none") +
+  coord_cartesian(clip = "off") +
+  theme(plot.margin = unit(c(0.5, 5, 1, 5), "cm"))
+
+
+
+
+```
+
+### lattice
+
+```{r}
+lattice::show.settings()
+```
+
+### base
+
+```{r}
+plot(pressure, col = thematic::thematic_get_option("accent"))
+```
+
+
+
+
+
+not_NYGC_samples <- qc_assay_map[qc_assay_map$filename.sample %in% setdiff(qc_assay_map$filename.sample, wgs_qc_df$Sample), 'wgs_specimenID']
+
+hist(filtered_divco_wgs[filtered_divco_wgs$specimenID %in% not_NYGC_samples, "Percent.Sequence.Contamination"])
+
+
+not_NYGC_samples_divco <- filtered_divco_wgs[filtered_divco_wgs$specimenID %in% not_NYGC_samples,]
+not_NYGC_samples_contam <- filtered_divco_wgs[is.na(filtered_divco_wgs$Percent.Sequence.Contamination),]
+NYGC_samples_contam_df <- filtered_divco_wgs[filtered_divco_wgs$Percent.Sequence.Contamination > 2,]
+
+setdiff(NYGC_samples_contam, not_NYGC_samples_contam)
+NYGC_samples_contam
+
+qc_assay_map[grep('R6163593', qc_assay_map$final_specimenid), 'filename.sample']
+grep('10447620-DLPFC', wgs_qc_df$Sample)
+wgs_qc_df[427,]
+qc_assay_map[grep('R2310801', qc_assay_map$final_specimenid), 'filename.sample']
+grep("20917568-DLPFC", wgs_qc_df$Sample)
+wgs_qc_df[47,]
+
+
+
+wgs_assay_df[grepl('R2310801',wgs_assay_df$specimenID), ]
+
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Metric columns: QC name -> assay name
+metric_map <- c(
+  "Total.Reads"               = "Total.Reads",
+  "PF.Reads"                  = "PF.Reads",
+  "X..PF.Reads"               = "Percent.PF.Reads",
+  "PF.Aligned.Reads"          = "PF.Aligned.Reads",
+  "X..PF.Aligned"             = "Percent.PF.Aligned",
+  "PF.Aligned.Pairs"          = "PF.Aligned.Pairs",
+  "X..PF.Aligned.Pairs"       = "Percent.PF.Aligned.Pairs",
+  "Mean.Read.Length"          = "Mean.Read.Length",
+  "Strand.Balance"            = "Strand.Balance",
+  "Estimated.Library.Size"    = "Estimated.Library.Size",
+  "Mean.Coverage"             = "Mean.Coverage",
+  "X..Sequence.Contamination" = "Percent.Sequence.Contamination",
+  "Median.Insert.Size"        = "Median.Insert.Size",
+  "Mean.Insert.Size"          = "Mean.Insert.Size",
+  "AT.Dropout"                = "AT.Dropout",
+  "GC.Dropout"                = "GC.Dropout",
+  "X..Total.Dup."             = "Percent.Total.Dup."
+)
+
+# Subset and rename each to a common metric name (use the assay name as canonical)
+qc <- wgs_qc_df %>%
+  filter(!is.na(wgs_specimenID)) %>%
+  select(wgs_specimenID, all_of(names(metric_map))) %>%
+  rename_with(~ metric_map[.x], .cols = names(metric_map)) %>%
+  rename(specimenID = wgs_specimenID)
+
+assay <- wgs_assay_df %>%
+  select(specimenID, all_of(unname(metric_map)))
+
+# Samples present in both
+shared <- intersect(qc$specimenID, assay$specimenID)
+cat("Shared samples:", length(shared), "\n")
+
+# Long format, one row per (sample, metric) from each source, then compare
+qc_long    <- qc %>% filter(specimenID %in% shared) %>%
+  pivot_longer(-specimenID, names_to = "metric", values_to = "qc_value")
+assay_long <- assay %>% filter(specimenID %in% shared) %>%
+  pivot_longer(-specimenID, names_to = "metric", values_to = "assay_value")
+
+tol <- 1e-6  # relative tolerance for floating-point metrics
+
+cmp <- qc_long %>%
+  inner_join(assay_long, by = c("specimenID", "metric")) %>%
+  mutate(
+    qc_value    = suppressWarnings(as.numeric(qc_value)),
+    assay_value = suppressWarnings(as.numeric(assay_value)),
+    abs_diff    = abs(qc_value - assay_value),
+    denom       = pmax(abs(qc_value), abs(assay_value)),
+    rel_diff    = ifelse(denom == 0, 0, abs_diff / denom),   # both-zero -> 0, not NaN
+    status = case_when(
+      is.na(qc_value) & is.na(assay_value)              ~ "both_missing",
+      is.na(qc_value) | is.na(assay_value)              ~ "one_missing",
+      rel_diff <= tol                                    ~ "match",
+      TRUE                                               ~ "mismatch"
+    )
+  )
+
+cmp %>%
+  count(metric, status) %>%
+  pivot_wider(names_from = status, values_from = n, values_fill = 0) %>%
+  print(n = Inf)
+
+# the genuinely interesting rows
+cmp %>% filter(status == "mismatch") %>% arrange(desc(rel_diff)) %>% print(n = Inf)
+
+# samples missing on one side, for follow-up
+cmp %>% filter(status == "one_missing") %>% distinct(specimenID) %>% print(n = Inf)
+
+
+fix_ids <- c("R2310801", "R6163593")
+
+# QC file is keyed on wgs_specimenID; assay on specimenID
+for (id in fix_ids) {
+  qc_row <- wgs_qc_df[wgs_qc_df$wgs_specimenID == id & !is.na(wgs_qc_df$wgs_specimenID), ]
+  if (nrow(qc_row) != 1) {
+    warning("Expected exactly 1 QC row for ", id, " but found ", nrow(qc_row), " — skipping")
+    next
+  }
+  assay_idx <- which(wgs_assay_df$specimenID == id)
+  if (length(assay_idx) != 1) {
+    warning("Expected exactly 1 assay row for ", id, " but found ", length(assay_idx), " — skipping")
+    next
+  }
+  # metric_map: names = QC columns, values = assay columns
+  for (qc_col in names(metric_map)) {
+    assay_col <- metric_map[[qc_col]]
+    wgs_assay_df[assay_idx, assay_col] <- qc_row[[qc_col]]
+  }
+}
+
+wgs_assay_df[wgs_assay_df$specimenID %in% fix_ids,
+             c("specimenID", unname(metric_map))]
+
+
+write.table(wgs_assay_df, '/home/ec2-user/data/processed/metadata/DivCO/DivCo_assay_WGS_metadata.csv', sep = ',', row.names = F)
+
+```
+
+wgs_assay_df <- wgs_assay_df %>% mutate('Batch' = case_when(wgs_assay_df$specimenID %in% wgs_qc_df$wgs_specimenID ~ 'Batch 1',
+                                                          TRUE ~ 'Batch 2'))
+
+table(wgs_assay_df$Batch)                                                          
+
+
+library(ggplot2)
+wgs_assay_df$fill_group <- ifelse(
+  wgs_assay_df$Percent.Sequence.Contamination > 2,
+   wgs_assay_df$Batch,
+  "Below cutoff"
+)
+
+fill_vals <- c(
+  "Below cutoff" = "grey80",
+  "Batch 1"      = "#2166AC",
+  "Batch 2"      = "#B2182B"
+)
+
+contam_hist <- ggplot(wgs_assay_df, aes(x = Percent.Sequence.Contamination, fill = fill_group)) +
+  geom_histogram(binwidth = 0.1, colour = "grey30", linewidth = 0.1) +
+  geom_vline(xintercept = 2, linetype = "dashed", colour = "grey40") +
+  scale_fill_manual(values = fill_vals) +
+  annotate("text", x = 2.1, y = 50, label = "Contamination cutoff (> 2%)",
+           colour = "black", hjust = 0, size = 3.5, fontface = "italic") +
+  labs(title = "Sequence contamination",
+       subtitle = "Contaminated samples (> 2%) colored by batch; others grey",
+       x = "Percent Sequence Contamination", y = "Count",
+       fill = NULL) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "right")
+
+
+  ggsave(file.path('/home/ec2-user/AMP-AD_genetic_PCs/Results/Filtering/Sequence_contamination', "Percent_contamination_hist.png"),
+      contam_hist, width = 11, height = 8, dpi = 150)
+
+
+
+
+
+
+contam_samples <- wgs_assay_df[wgs_assay_df$Percent.Sequence.Contamination > 2, ]
+
+jitter <- ggplot(contam_samples, aes(x = Percent.Sequence.Contamination, y = 0)) +
+  geom_jitter(height = 0.15, size = 3, alpha = 0.8, colour = "#B2182B") +
+  geom_vline(xintercept = 3, linetype = "dashed", colour = "grey40", linewidth = 0.7) +
+  geom_vline(xintercept = 5, linetype = "dashed", colour = "grey20", linewidth = 0.7) +
+  annotate("text", x = 2.60, y = 0.25, label = "3%", colour = "black", size = 6, fontface = "italic") +
+  annotate("text", x = 4.60, y = 0.25, label = "5%", colour = "black", size = 6, fontface = "italic") +
+  labs(title = "Samples above contamination cutoff (> 2%, all Batch 2)",
+       x = "Percent Sequence Contamination", y = NULL) +
+  theme_bw(base_size = 12) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = "none")
+
+
+  ggsave(file.path('/home/ec2-user/AMP-AD_genetic_PCs/Results/Filtering/Sequence_contamination', "Over_two_percent_contam_jitter.png"),
+      jitter , width = 11, height = 8, dpi = 150)
+
+ggplot(wgs_assay_df, aes(x = Percent.Sequence.Contamination, fill = factor(Batch))) +
+  geom_histogram(binwidth = 0.25, colour = "grey30") +
+  scale_fill_manual(values = c("1" = "#2166AC", "2" = "#B2182B")) +
+  coord_cartesian(xlim = c(2, NA)) +
+  labs(x = "Percent Sequence Contamination", y = "Count", fill = "Batch") +
+  theme_bw(base_size = 12)
+
+
+  dim(contam_samples[contam_samples$Percent.Sequence.Contamination <5, ])
+
+contam_samples$sample.id <- contam_samples$specimenID
+write.table(contam_samples, '~/data/pca_results/QC/'

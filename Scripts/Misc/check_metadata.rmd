@@ -78,7 +78,7 @@ The Diverse Cohorts (DivCo) study provides three metadata tables — individual,
 assay (WGS), and biospecimen.
 
 AMP-AD_DiverseCohorts_assay_WGS_metadata.csv is the DivCo metadata file (syn51757644) to which sample list were matched using `specimenID`
-AMP-AD_DiverseCohorts_individual_metadata.csv (syn51757646) contains individual level data for DivCo cohort
+AMP-AD_DiverseCohorts_individual_metadata_harmonized.csv (syn73713769) contains individual level data for DivCo cohort
 AMP-AD_DiverseCohorts_biospecimen_metadata.csv (syn51757645) contains individual to biospecimen mapping for DivCo cohort 
 
 ```{r divco-wgs, echo = FALSE}
@@ -103,9 +103,13 @@ venn_two(sample_list, AMP_AD_DivCo_wgs_df$specimenID,
 ```{r divco-individual, echo = FALSE}
 # load individual and biospecimen metadata
 AMP_AD_DivCo_individual_df <- read.table(
-  "~/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_individual_metadata.csv",
-  sep = ",", header = TRUE
+  "~/data/metadata/harmonized_metadata/AMP-AD_DiverseCohorts_individual_metadata_harmonized.csv",
+  sep = ",", header = TRUE,
+  quote = "",          # disable quote parsing
+  fill = TRUE,         # fill missing fields
+  comment.char = ""    # ignore # as comment character
 )
+
 AMP_AD_DivCo_biospec_df <- read.table(
   '~/data/metadata/AMP-AD_DivCo/AMP-AD_DiverseCohorts_biospecimen_metadata.csv', 
   sep = ',', header = T)
@@ -122,7 +126,7 @@ Mayo). Each is checked against its WGS assay metadata.
 ### ROSMAP
 
 ROSMAP_assay_wholeGenomeSeq_metadata.csv (syn21314542) is the Rosmap WGS metadata file to which sample list were matched using `specimenID`
-ROSMAP_clinical.csv (syn3191087) is the Rosmap individual metadata file
+ROSMAP_clinical_harmonized.csv (syn73713768) is the Rosmap individual metadata file
 ROSMAP_biospecimen_metadata.csv (syn21323366) is the Rosmap biospecimen metadata file 
 
 ```{r rosmap_wgs, echo=FALSE}
@@ -145,8 +149,11 @@ venn_two(sample_list, rosmap_wgs_df$specimenID,
 ```{r rosmap_metadata, echo=FALSE}
 # load individual and biospecimen metadata
 rosmap_individual_df <- read.table(
-  "~/data/metadata/AMP-AD_1.0/ROSMAP_clinical.csv",
-  sep = ",", header = TRUE
+  "~/data/metadata/harmonized_metadata/ROSMAP_clinical_harmonized.csv",
+  sep = ",", header = TRUE,
+  quote = "",          # disable quote parsing
+  fill = TRUE,         # fill missing fields
+  comment.char = ""    # ignore # as comment character
 )
 rosmap_bio_df <- read.table(
   "~/data/metadata/AMP-AD_1.0/ROSMAP_biospecimen_metadata.csv",
@@ -156,7 +163,7 @@ rosmap_bio_df <- read.table(
 ```
 ### MSBB
 MSBB_assay_wholeGenomeSeq_metadata.csv (syn22360825) is the MSBB WGS metadata file to which sample list were matched using `specimenID` 
-MSBB_individual_metadata.csv (syn6101474) is the MSBB individual metadata file
+MSBB_individual_metadata_harmonized.csv (syn73713767) is the MSBB individual metadata file
 MSBB_biospecimen_metadata.csv (syn21893059) is the MSBB biospecimen metadata file 
 
 ```{r msbb, echo = FALSE}
@@ -176,8 +183,11 @@ venn_two(sample_list, msbb_wgs_df$specimenID,
 ```{r msbb_all, echo = FALSE}
 # load individual and biospecimen metadata
 msbb_individual_df <- read.table(
-  "~/data/metadata/AMP-AD_1.0/MSBB_individual_metadata.csv",
-  sep = ",", header = TRUE
+  "~/data/metadata/harmonized_metadata/MSBB_individual_metadata_harmonized.csv",
+  sep = ",", header = TRUE,
+  quote = "",          # disable quote parsing
+  fill = TRUE,         # fill missing fields
+  comment.char = ""    # ignore # as comment character
 )
 msbb_bio_df <- read.table(
   "~/data/metadata/AMP-AD_1.0/MSBB_biospecimen_metadata.csv",
@@ -187,7 +197,7 @@ msbb_bio_df <- read.table(
 ### MayoRNAseq
 
 MayoRNAseq_assay_wholeGenomeSeq_metadata.csv (syn23481994) is the Mayo WGS metadata file to which sample list were matched using `specimenID` 
-MayoRNAseq_individual_metadata.csv (syn23277389)  is the Mayo individual metadata file
+MayoRNAseq_individual_metadata.csv (syn73713766)  is the Mayo individual metadata file
 MayoRNAseq_biospecimen_metadata.csv (syn20827192) is the Mayo biospecimen metadata file 
 ```{r mayo, echo = FALSE}
 mayo_wgs_df <- read.table(
@@ -207,9 +217,13 @@ venn_two(sample_list, mayo_wgs_df$specimenID,
 ```{r mayo_all, echo=FALSE}
 # for MayoRNAseq, specimenID and individualID are the same
 mayo_individual_df <- read.table(
-  "~/data/metadata/AMP-AD_1.0/MayoRNAseq_individual_metadata.csv",
-  sep = ",", header = TRUE
+  "~/data/metadata/harmonized_metadata/MayoRNAseq_individual_metadata_harmonized.csv",
+  sep = ",", header = TRUE,
+  quote = "",          # disable quote parsing
+  fill = TRUE,         # fill missing fields
+  comment.char = ""    # ignore # as comment character
 )
+
 mayo_bio_df <- read.table(
   "~/data/metadata/AMP-AD_1.0/MayoRNAseq_biospecimen_metadata.csv",
   sep = ",", header = TRUE
@@ -423,43 +437,42 @@ write.table(combined_bio_df,
 ```{r Individual_combined_metadata, echo = FALSE}
 #Subset each individual file to samples from sample list and create combined WGS assay metadata
 AMP_AD_DivCo_individual_df <- AMP_AD_DivCo_individual_df[AMP_AD_DivCo_individual_df$individualID %in% AMP_AD_DivCo_biospec_df$individualID, ]
-#Save table 
 write.table(AMP_AD_DivCo_individual_df, '~/data/processed/metadata/DivCO/DivCo_individual_metadata.csv', sep = ',')
+
 mayo_individual_df <- mayo_individual_df[as.character(mayo_individual_df$individualID) %in% mayo_bio_df$individualID, ]
 write.table(mayo_individual_df, '~/data/processed/metadata/Mayo/Mayo_individual_metadata.csv', sep = ',')
-#Rosmap
-rosmap_individual_df <- rosmap_individual_df[rosmap_individual_df$individualID %in% rosmap_divco_ampad1_idlink$individualID, ] #dimension is 182 
+
+rosmap_individual_df <- rosmap_individual_df[rosmap_individual_df$individualID %in% rosmap_divco_ampad1_idlink$individualID, ]
 write.table(rosmap_individual_df, '~/data/processed/metadata/Rosmap/Rosmap_individual_metadata.csv', sep = ',')
-common_cols <- c("individualID", "sex", "race", "ageDeath", "PMI", 
-                 "apoeGenotype", "Braak", "individual_metadata_source")
+
+# Common columns across all three cohorts
+common_cols <- c("individualID", "dataContributionGroup", "cohort", "species",
+                 "sex", "race", "isHispanic", "ageDeath", "PMI",
+                 "apoeGenotype", "apoe4Status", "amyCerad", "amyAny", 
+                 "amyThal", "amyA", "Braak", "bScore",
+                 "individual_metadata_source")
 
 rosmap_individual_clean <- rosmap_individual_df |>
-  rename(sex          = msex,
-         ageDeath     = age_death,
-         PMI          = pmi,
-         apoeGenotype = apoe_genotype,
-         Braak        = braaksc) |>
   mutate(across(everything(), as.character),
-         individual_metadata_source = "syn6101474") 
+         individual_metadata_source = "syn73713768")
 
 mayo_individual_clean <- mayo_individual_df |>
-  rename(PMI = pmi) |>
   mutate(across(everything(), as.character),
-         individual_metadata_source = "syn23277389")
+         individual_metadata_source = "syn73713766")
 
 divco_individual_clean <- AMP_AD_DivCo_individual_df |>
   mutate(across(everything(), as.character),
-         individual_metadata_source = "syn51757646")
+         individual_metadata_source = "syn73713769")
 
 combined_individual_df <- bind_rows(
   rosmap_individual_clean |> select(all_of(common_cols)),
   mayo_individual_clean   |> select(all_of(common_cols)),
   divco_individual_clean  |> select(all_of(common_cols))
 )
+
 write.table(combined_individual_df,
             '~/data/processed/metadata/Combined/DivCo_AMPAD_1.0_individual_metadata.csv',
             sep = ',', row.names = FALSE)
-
 ```
 ```{r print_hist, echo = FALSE}
 combined_wgs_df |>
@@ -502,9 +515,14 @@ For the **biospecimen metadata**, the following columns were retained across all
 and `assay`. All tables were subset to `wholeGenomeSeq` assay only prior to combining. The final 
 combined table contains `r nrow(combined_bio_df)` samples.
 
-For the **individual metadata**, the following columns were retained across all three cohorts:
-`individualID`, `sex`, `race`, `ageDeath`, `PMI`, `apoeGenotype`, and `Braak`. The final combined 
-table contains `r nrow(combined_individual_df)` individuals.
+For the **individual metadata**, the harmonized metadata from syn73713763 was used. Column names were 
+consistent across all three cohorts, requiring no renaming. The following columns were retained across 
+all cohorts: `individualID`, `dataContributionGroup`, `cohort`, `species`, `sex`, `race`, `isHispanic`, 
+`ageDeath`, `PMI`, `apoeGenotype`, `apoe4Status`, `amyCerad`, `amyAny`, `amyThal`, `amyA`, `Braak`, 
+and `bScore`. Cohort-specific columns (e.g. `cogdx`, `dcfdx_lv` for ROSMAP; `diagnosis`, `brainWeight` 
+for Mayo; `mayoDx`, `ADoutcome` for DivCo) were excluded from the combined table but retained in the 
+cohort-specific files. The final combined table contains `r nrow(combined_individual_df)` individuals across `r length(unique(combined_individual_df$cohort))` 
+cohorts.
 
 A `*_metadata_source` column was added to each combined table to track the originating Synapse file 
 per cohort. All combined tables are saved to `~/data/processed/metadata/Combined/`.

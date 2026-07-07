@@ -1,0 +1,6 @@
+new("pcaProject", projDir = "/home/ec2-user/data/pca_results/PCA/LEA/", 
+    pcaDir = "qc_pruned_geno.pca/", n = 974L, L = 374782L, K = 974L, 
+    center = TRUE, scale = TRUE, pcaProject.file = "qc_pruned_geno.pcaProject", 
+    input.file = "qc_pruned_geno.lfmm", eigenvalue.file = "qc_pruned_geno.eigenvalues", 
+    eigenvector.file = "qc_pruned_geno.eigenvectors", sdev.file = "qc_pruned_geno.sdev", 
+    projection.file = "qc_pruned_geno.projections")

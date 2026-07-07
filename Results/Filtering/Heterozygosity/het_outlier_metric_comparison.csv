@@ -1,0 +1,11 @@
+"metric","cohort_median","cohort_min","cohort_max","outlier_min","outlier_max"
+"AT.Dropout",0.9354,0.3288,2.285,0.5905,1.6782
+"Concentration..ng.uL.",21.5,2.18,179.46,2.18,51.57
+"GC.Dropout",0.7126,0.0781,2.7057,0.4231,1.4295
+"GQN",5.7,0.4,8.8,2.4,8
+"Mean.Coverage",32.5437,27.1042,65.0343,30.3574,35.0476
+"Median.Insert.Size",433,395,467,419,439
+"Percent.PF.Aligned",99.7799,97.6691,99.852,99.7357,99.8133
+"Percent.Sequence.Contamination",0.075,0,23.301,0,23.301
+"Percent.Total.Dup.",13.383,5.7275,44.6536,7.5052,22.7459
+"Strand.Balance",0.5004,0.5002,0.5019,0.5003,0.5006

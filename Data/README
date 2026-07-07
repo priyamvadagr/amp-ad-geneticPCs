@@ -1,0 +1,5 @@
+# Folder for data used in the analysis (not genotype or metadata)
+
+high-LD-regions-hg38-GRCh38.txt
+ - https://raw.githubusercontent.com/cran/plinkQC/master/inst/extdata/high-LD-regions-hg38-GRCh38.txt
+ - Regions of long range LD to exclude
