@@ -35,7 +35,8 @@ meta <- biospec %>% select(specimenID, individualID) %>% distinct() %>%
 pc <- pc %>%
   left_join(meta, by = c("sample.id" = "specimenID")) %>% 
   mutate(
-    race = ifelse(is.na(race) | race == "" | race == "missing or unknown", "Missing/Unknown", race),
+    race = ifelse(is.na(race) | race == "" | race == "missing or unknown", "Missing/Unknown",
+                  ifelse(race == "Other", "Not specified", race)),
     hisp = case_when(
       as.character(isHispanic) %in% c("True") ~ "Hispanic",
       as.character(isHispanic) %in% c("False") ~ "Non-Hispanic",
@@ -44,11 +45,11 @@ pc <- pc %>%
 
 ## ---- 3. Colour palette for race --------------------------------------------
 races <- unique(pc$race)
-race_cols <- c("White" = "#E69F00",  # orange
+race_cols <- c("White" = "#CC79A7",  # orange
                "Asian" = "#0039A6",  # dark blue
                "Black or African American" = "#009E73",  # green
-               "Other" = "#85144b",  # pink/magenta
-               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange,  
+               "Not specified" = "#85144b",  # pink/magenta
+               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange  
 
 race_cols["Missing/Unknown"] <- "#374057"   # mute the unknowns
 hisp_shapes <- c("Hispanic" = 17, "Non-Hispanic" = 16, "Unknown" = 4)
@@ -79,10 +80,15 @@ p34 <- plot_pc_pair(pc, "PC3", "PC4", "race",
 ggsave(file.path(fig_dir, "pca_PC3_PC4_byRace.png"), p34,
        width = 12, height = 10, dpi = 150,  scale = 1)
 
-p34 <- plot_pc_pair(pc, "PC5", "PC6", "race", 
+p56 <- plot_pc_pair(pc, "PC5", "PC6", "race", 
                     title = "PC5 vs PC6 by self-reported race")
-ggsave(file.path(fig_dir, "pca_PC5_PC6_byRace.png"), p34,
+ggsave(file.path(fig_dir, "pca_PC5_PC6_byRace.png"), p56,
        width = 12, height = 10, dpi = 150,  scale = 1)
+p78 <- plot_pc_pair(pc, "PC7", "PC8", "race", 
+                    title = "PC7 vs PC8 by self-reported race")
+ggsave(file.path(fig_dir, "pca_PC7_PC8_byRace.png"), p78,
+       width = 12, height = 10, dpi = 150,  scale = 1)
+
 
 ## ---- 6. PC1-PC2 with Hispanic ethnicity as shape ---------------------------
 
@@ -139,7 +145,7 @@ p_panel <- ggplot(pc_pairs, aes(xv, yv, colour = race)) +
   labs(title = "Informative PCs (1-4) by self-reported race",
        x = NULL, y = NULL, colour = "Race") +
   theme_bw(base_size = 11)
-ggsave(file.path(fig_dir, "pca_PC1-4_panel_byRace.png"), p_panel,
+ggsave(file.path(fig_dir, "pca_PC1-6_panel_byRace.png"), p_panel,
        width = 15, height = 5, dpi = 150)
 
 cat("PCA-by-ancestry plots written to", fig_dir, "\n")

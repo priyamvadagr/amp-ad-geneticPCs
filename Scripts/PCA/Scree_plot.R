@@ -65,17 +65,21 @@ p_eig <- ggplot(eig[1:n_show, ], aes(PC, eigenvalue)) +
 ggsave(file.path(fig_dir, "scree_eigenvalue_log.png"), p_eig,
        width = 8, height = 5, dpi = 150)
 
-## ---- #. Quick elbow heuristic (for cross-check) ----------------------------
+## ---- # Quick elbow heuristic (for cross-check) ----------------------------
 # Proportion-of-variance drop: flag where successive PC variance ratio levels off
 eig <- eig %>% mutate(var_ratio = var_pct / lead(var_pct))
 cat("\nTop PCs and % variance (eyeball the elbow):\n")
 print(head(eig[, c("PC","eigenvalue","var_pct", "var_ratio")], 20))
-
 cat("\nScree plots written to", fig_dir, "\n")
 cat("Decide # informative PCs from: Tracy-Widom count + scree elbow + visual\n")
 cat("inspection of PC scatter plots (whether each PC shows real structure).\n")
 
+## ---- 3. Subset eigenvector file to significant PCs ----------------------------
 
+pc_df <- read.table(file.path(out_dir, "pca_eigenvectors.csv"), header = T, sep = ',')
+sig_pc_df <- pc_df[, c('sample.id', 'PC1', 'PC2', 'PC3', 'PC4')]
+
+write.table(sig_pc_df, file.path(out_dir, "sig_pca_eigenvectors.csv"), row.names = F)
 
 
 

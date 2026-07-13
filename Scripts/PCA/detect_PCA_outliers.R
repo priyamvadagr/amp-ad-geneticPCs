@@ -1,10 +1,8 @@
 ################################################################################
-# pca_outlier_lof.R
+# detect_PCA_outliers.R
 # Detect PCA outlier samples using the KNN-based Probabilistic LOF statistic
 # from Prive et al. 2020 (Bioinformatics), implemented in bigutilsr.
-#
-# This is the ancestry-aware alternative to the "6 SD" rule, which over-flags
-# in structured/diverse cohorts. Threshold is chosen by VISUAL INSPECTION of
+# Threshold is chosen by VISUAL INSPECTION of
 # the statistic's histogram + PC scatter coloured by the statistic (as the
 # paper recommends), NOT an automatic cutoff.
 #
@@ -49,7 +47,8 @@ meta <- biospec %>% select(specimenID, individualID) %>% distinct() %>%
 pc <- pc %>%
   left_join(meta, by = c("sample.id" = "specimenID")) %>% 
   mutate(
-    race = ifelse(is.na(race) | race == "" | race == "missing or unknown", "Missing/Unknown", race),
+    race = ifelse(is.na(race) | race == "" | race == "missing or unknown", "Missing/Unknown", 
+                  ifelse(race == "Other", "Not specified", race)),
     hisp = case_when(
       as.character(isHispanic) %in% c("True") ~ "Hispanic",
       as.character(isHispanic) %in% c("False") ~ "Non-Hispanic",
@@ -60,7 +59,7 @@ pc <- pc %>%
 # also from bigutilsr — use as a GUIDE, then confirm visually.
 thr <- bigutilsr::tukey_mc_up(pc$lof)
 cat("Suggested LOF threshold (tukey_mc_up):", round(thr, 3), "\n")
-thr <- 2
+thr <- 2 # picked 2 based on visual inspection
 pc$outlier <- pc$lof > thr
 cat("Outliers above suggested threshold:", sum(pc$outlier), "\n")
 print(pc %>% filter(outlier) %>% select(sample.id, lof))
@@ -82,16 +81,17 @@ ggsave(file.path(fig_dir, "pca_LOF_histogram.png"), p_hist,
 
 ## ---- 4. PC scatter coloured by the statistic (paper's Fig. 2 style) --------
 races <- unique(pc$race)
-race_cols <- c("White" = "#E69F00",  # orange
+race_cols <- c("White" = "#CC79A7",  # orange
                "Asian" = "#0039A6",  # dark blue
                "Black or African American" = "#009E73",  # green
-               "Other" = "#85144b",  # pink/magenta
-               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange,  
+               "Not specified" = "#85144b",  # pink/magenta
+               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange  
+
 
 race_cols["Missing/Unknown"] <- "#374057"   # mute the unknowns
 hisp_shapes <- c("Hispanic" = 17, "Non-Hispanic" = 16, "Unknown" = 4)
 
-p_scores <- ggplot(pc, aes(PC1, PC2, colour = lof)) +
+p_scores <- ggplot(pc, aes(PC5, PC6, colour = lof)) +
   geom_point(size = 1.8) +
   scale_colour_viridis_c(option = "plasma") +
   labs(title = "PC1 vs PC2 coloured by LOF statistic",
@@ -112,7 +112,7 @@ ggsave(file.path(fig_dir, "pca_PC3_PC4_byLOF.png"), p_scores_pc34,
        width = 8, height = 6, dpi = 150)
 
 
-p_score_cutoff <- ggplot(pc, aes(PC3, PC4, colour = lof > thr)) +
+p_score_cutoff_34 <- ggplot(pc, aes(PC3, PC4, colour = lof > thr)) +
   geom_point(size = 1.8) +
   scale_colour_viridis_d(option = "plasma",
                          labels = c(paste0("LOF \u2264 ", thr), paste0("LOF > ", thr)),
@@ -120,10 +120,10 @@ p_score_cutoff <- ggplot(pc, aes(PC3, PC4, colour = lof > thr)) +
   labs(title = "PC3 vs PC4 coloured by LOF threshold",
        x = "PC3", y = "PC4") +
   theme_bw(base_size = 12)
-ggsave(file.path(fig_dir, "pca_PC3_PC4_abovecutOff.png"), p_score_cutoff,
+ggsave(file.path(fig_dir, "pca_PC3_PC4_abovecutOff.png"), p_score_cutoff_34,
        width = 8, height = 6, dpi = 150)
 
-p_score_cutoff <- ggplot(pc, aes(PC1, PC2, colour = lof > thr)) +
+p_score_cutoff_12 <- ggplot(pc, aes(PC1, PC2, colour = lof > thr)) +
   geom_point(size = 1.8) +
   scale_colour_viridis_d(option = "plasma",
                          labels = c(paste0("LOF \u2264 ", thr), paste0("LOF > ", thr)),
@@ -131,7 +131,18 @@ p_score_cutoff <- ggplot(pc, aes(PC1, PC2, colour = lof > thr)) +
   labs(title = "PC1 vs PC2 coloured by LOF threshold",
        x = "PC1", y = "PC2") +
   theme_bw(base_size = 12)
-ggsave(file.path(fig_dir, "pca_PC1_PC2_abovecutOff.png"), p_score_cutoff,
+ggsave(file.path(fig_dir, "pca_PC1_PC2_abovecutOff.png"), p_score_cutoff_12,
+       width = 8, height = 6, dpi = 150)
+
+p_score_cutoff_56 <- ggplot(pc, aes(PC5, PC6, colour = lof > thr)) +
+  geom_point(size = 1.8) +
+  scale_colour_viridis_d(option = "plasma",
+                         labels = c(paste0("LOF \u2264 ", thr), paste0("LOF > ", thr)),
+                         name = "Outlier status") +
+  labs(title = "PC5 vs PC6 coloured by LOF threshold",
+       x = "PC5", y = "PC6") +
+  theme_bw(base_size = 12)
+ggsave(file.path(fig_dir, "pca_PC5_PC6_abovecutOff.png"), p_score_cutoff_56,
        width = 8, height = 6, dpi = 150)
 
 
@@ -157,6 +168,18 @@ p_flag_pc3_pc4 <- ggplot(pc, aes(x = PC3, y = PC4, colour = race, shape = hisp))
   theme_bw(base_size = 14) +
   guides(colour = guide_legend(override.aes = list(shape = 16)))  # legend dots
   ggsave(file.path(fig_dir, "pca_PC3_PC4_outliers.png"), p_flag_pc3_pc4,
+       width = 12, height = 10, dpi = 150)
+
+p_flag_pc5_pc6 <- ggplot(pc, aes(x = PC5, y = PC6, colour = race, shape = hisp)) +
+  geom_point(size = 2, alpha = 0.8) +
+  geom_point(data = subset(pc, outlier), colour = "black", size = 4, shape = 1) +
+  scale_colour_manual(values = race_cols, name = "Self-reported Race") +
+  scale_shape_manual(values = hisp_shapes, name = "Hispanic Ethnicity") +
+  labs(title = "PC5 vs PC6 by self-reported Race and Hispanic ethnicity",
+       x = "PC5", y = "PC6") +
+  theme_bw(base_size = 14) +
+  guides(colour = guide_legend(override.aes = list(shape = 16)))  # legend dots
+  ggsave(file.path(fig_dir, "pca_PC5_PC6_outliers.png"), p_flag_pc5_pc6,
        width = 12, height = 10, dpi = 150)
 
 write.csv(pc %>% select(sample.id, lof, outlier),

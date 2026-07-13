@@ -392,6 +392,3 @@ ggplot(wgs_assay_df, aes(x = Percent.Sequence.Contamination, fill = factor(Batch
 
 
   dim(contam_samples[contam_samples$Percent.Sequence.Contamination <5, ])
-
-contam_samples$sample.id <- contam_samples$specimenID
-write.table(contam_samples, '~/data/pca_results/QC/'

@@ -41,7 +41,8 @@ dat <- sc %>%
   left_join(combined_ind_df %>% select(sample.id, race, isHispanic, sex),
             by = c("IID" = "sample.id")) %>%
   mutate(
-    race = ifelse(is.na(race) | race == "missing or unknown", "Missing/Unknown", race),
+    race = ifelse(is.na(race) | race == "" | race == "missing or unknown", "Missing/Unknown", 
+                  ifelse(race == "Other", "Not specified", race)),
     hisp = case_when(
       isHispanic == "True"  ~ TRUE,
       isHispanic == "False"  ~ FALSE,
@@ -80,11 +81,12 @@ cat("Mismatches (recorded != genetic plink):", sum(dat$mismatch_plink, na.rm = T
 cat("Mismatches (recorded != genetic new threshold):", sum(dat$mismatch_new, na.rm = TRUE), "\n")
 
 
-race_colors <- c("White" = "#E69F00",  # orange
+race_colors <-  c("White" = "#CC79A7",  # orange
                "Asian" = "#0039A6",  # dark blue
                "Black or African American" = "#009E73",  # green
-               "Other" = "#85144b",  # pink/magenta
-               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange,  
+               "Not specified" = "#85144b",  # pink/magenta
+               "American Indian or Alaska Native" = "#D55E00")  # vermillion/red-orange  
+
 
 race_colors["Missing/Unknown"] <- "#374057"   # mute the unknowns
 

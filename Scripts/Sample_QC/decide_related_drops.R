@@ -1,10 +1,10 @@
 ################################################################################
-# decide_related_drops_v3.R
+# decide_related_drops.R
 #
 # Workflow:
 #   1. Genuine related pairs (2nd-degree+, excl. duplicate)
 #   2. DROP contaminated (>2%) samples first
-#   3. Plot Tier-1 QC for the remaining related-pair samples (no pair colouring)
+#   3. Plot QC for the remaining related-pair samples (no pair colouring)
 #   4. Build the relatedness graph; separate TRIADS (clusters >=3) from
 #      DISJOINT PAIRS (isolated 2-sample components)
 #   5. Resolve disjoint pairs by specimen count (keep the one with more)
@@ -294,9 +294,3 @@ kinship_drop_flags <- data.frame(sample.id = all_sample_ids,
 
 write.table(kinship_drop_flags, '~/data/pca_results/QC/Sample_relatedness_drop_flag.csv', sep = ',')
 
-
-dim(triad_decision)
-
-contam_related
-
-dat[dat$FID == 'NYBB_348WGS',]

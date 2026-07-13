@@ -34,19 +34,5 @@ write.table(sex_file, "~/data/processed/recorded_sex.txt",
             row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 
-sc2 <- read.table("~/data/processed/sexcheck_filt_vs_recorded.sexcheck", header = TRUE)
-table(recorded = sc2$PEDSEX, inferred = sc2$SNPSEX)
-sc2 %>% filter(STATUS == "PROBLEM" & PEDSEX != 0)
-
-sc %>% filter(SNPSEX == 0) %>% pull(F) %>% summary()
-hist(sc$F[sc$SNPSEX == 0], breaks = 30)
-
-# join ancestry and see if undetermined females concentrate in certain groups
-sc %>%
-  filter(SNPSEX == 0) %>%
-  left_join(combined_ind_df, by = c("IID" = "sample.id")) %>%
-  count(race)
-
-hist(sc$F, breaks = 100)   # the WHOLE distribution, not just SNPSEX==0
 
 
