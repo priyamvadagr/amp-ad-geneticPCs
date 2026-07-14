@@ -52,9 +52,6 @@ Scripts/
   Misc/                   One-off metadata reconciliation / investigation
                           scripts (DivCo <-> AMP-AD 1.0 <-> Synapse ID
                           mapping, sex-record creation, scratch analysis)
-  check_metadata.R,
-  check_wgs_metadata.r    Ad hoc checks reconciling sample lists across
-                          metadata files
 
 Results/
   Filtering/              QC diagnostic plots: heterozygosity, kinship,
