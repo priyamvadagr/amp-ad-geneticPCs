@@ -165,6 +165,13 @@ regions (`Data/high-LD-regions-hg38-GRCh38.txt`).
   probabilistic LOF, Prive et al. 2020)
 - `Plot_PCs.R` — PCs colored by self-reported race/ethnicity, cohort, and
   data center to confirm they capture ancestry rather than batch
+- `estimate_SNP_weights.R` — computes SNP loadings from the clean PCA
+  (`snpgdsPCASNPLoading`) and exports them with variant IDs/allele coding
+  (`pc_snp_loadings.rds`, `pc_projection_weights.csv`) so held-out samples
+  can later be projected onto this PC space
+- `project_dropped_samples.R` — projects all QC-dropped samples onto the
+  clean PC space using those loadings (`snpgdsPCASampLoading`), and produces
+  overlay plots (clean vs. projected-dropped) for PC1–PC4
 
 ### Metadata reconciliation (`Scripts/Misc/`)
 
